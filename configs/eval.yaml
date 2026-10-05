@@ -1,0 +1,66 @@
+# Evaluation harness configuration (Phase 5).
+
+# Episodes per cell of the grid.
+#   The deterministic condition is literally deterministic -- the emulator and both agents'
+#   greedy policies are reproducible -- so repeats there VERIFY determinism rather than
+#   estimate a rate. The sticky condition needs enough episodes for a usable rate.
+episodes_deterministic: 3
+episodes_sticky: 20
+
+# The transfer level is deterministic AND expensive for the closed-loop planner (it usually
+# fails to find a plan there, so every replan burns its full time budget). One episode is
+# sufficient: with no perturbation, repeats are identical by construction.
+episodes_transfer: 1
+
+# The two evaluation conditions of the experimental design.
+conditions: [0.0, 0.25]
+
+# Levels. 1-1 is where both agents were developed; 1-2 is the zero-shot transfer test:
+# PPO was never trained on it, and A* runs on it completely unchanged.
+levels: ["1-1", "1-2"]
+transfer_level: "1-2"
+
+# Goal x per level, for the heuristic and for distance plots. 3161 is 1-1's flagpole,
+# verified by letting the planner reach it in Phase 3.
+goal_x:
+  "1-1": 3161
+  "1-2": 2900
+
+# Hard per-episode frame cap, so a stalled agent terminates.
+max_frames: 12000
+
+# Decision frequency, in frames.
+#   A* plans are per-frame byte sequences, so it decides every frame.
+#   PPO was trained at frame-skip 4, so it decides every 4 frames and its action is held in
+#   between -- exactly the regime it was trained under. Both face the same clock and the same
+#   per-frame sticky perturbation.
+decision_every:
+  astar_open_loop: 1
+  astar_closed_loop: 1
+  ppo: 4
+  random: 1
+
+# Closed-loop receding-horizon settings.
+closed_loop:
+  replan_every: 15     # frames between replans; smaller corrects sooner, costs more compute
+  horizon_px: 160      # lookahead distance per search
+  weight: 1.0
+  max_nodes: 600
+  max_seconds: 1.0     # a replan that overruns leaves the previous plan in place. Kept
+                       # tight because a level the planner cannot solve makes EVERY replan
+                       # hit this budget, and the per-episode cost is replans x this value.
+
+# Where the cached open-loop plans live. Produced by scripts/phase3_plan.py.
+plans:
+  "1-1": "results/raw/phase3_plan_1-1_w1.0_seed0.json"
+  "1-2": "results/raw/phase3_plan_1-2_w1.0_seed0.json"
+
+# Trained policy, and its measured cost, carried into the compute-cost column.
+ppo:
+  model: "runs/ppo_1-1/final_model.zip"
+  device: "cpu"
+  deterministic: true
+  training_frames: 20002688   # 5,000,672 agent steps x frame-skip 4
+  training_seconds: 4445.8
+
+seed: 0
