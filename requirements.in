@@ -1,0 +1,24 @@
+# --- emulator / environment ---
+gym-super-mario-bros==9.1.0   # Gymnasium-native SMB env (bundles the ROM)
+nes-py==9.0.1                 # NES emulator; prebuilt arm64 wheels, dump_state/load_state
+gymnasium==1.3.0
+
+# --- RL ---
+stable-baselines3==2.9.0
+torch==2.14.0
+tensorboard==2.21.0
+
+# --- vision / media ---
+opencv-python==5.0.0.93
+imageio[ffmpeg]
+matplotlib==3.11.2
+
+# --- data / config / cli ---
+numpy==2.5.3
+pandas==3.0.6
+pyyaml==6.0.3
+rich==15.0.0
+tqdm==4.70.1
+
+# --- testing ---
+pytest==9.1.1

@@ -1,0 +1,23 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+# training artefacts
+runs/
+checkpoints/
+*.zip
+tensorboard/
+# generated outputs (keep the folders, ignore the contents)
+results/raw/*
+results/tables/*
+results/figures/*
+!results/**/.gitkeep
+media/
+*.mp4
+*.gif
+!docs/**/*.gif
+
+# local-only
+CLAUDE.md
+.Rhistory
