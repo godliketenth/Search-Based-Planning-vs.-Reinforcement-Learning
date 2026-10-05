@@ -1,0 +1,37 @@
+# A* planner configuration (Phase 3).
+
+# Goal x for the heuristic. 3161 is the flagpole in 1-1, verified by letting the planner
+# reach it. The goal *test* is the emulator's own `flag_get`, so this value only affects
+# search efficiency -- but it must never OVERESTIMATE the distance, or the heuristic stops
+# being admissible and A* loses its optimality guarantee.
+goal_x: 3161
+
+# Heuristic inflation. 1.0 = optimal A*. Above 1.0 is weighted A*: faster, and bounded
+# suboptimal -- the plan costs at most `weight` x the optimal plan.
+weight: 1.0
+
+# Lattice resolution for duplicate detection, in pixels (x, y) and subpixels/frame (vx).
+# Coarser merges more states: faster, but can discard the only state a jump would work from.
+# This is what makes the planner resolution-complete rather than complete.
+lattice:
+  x_res: 8
+  y_res: 8
+  vx_res: 8
+
+# Stopping limits. max_frontier is a memory cap: snapshots are ~272 KB each, so 4000 live
+# frontier nodes is roughly 1.1 GB.
+budget:
+  max_nodes: 40000
+  max_seconds: 300
+  max_frontier: 4000
+
+# Motion primitives -- the edges of the search graph. Jump entries hold A for `hold` frames
+# out of `total`, which is what sets jump height.
+primitives:
+  - {name: run,       byte: right_b, frames: 12}
+  - {name: walk,      byte: right,   frames: 12}
+  - {name: hop,       jump: {hold: 4,  total: 20}}
+  - {name: jump,      jump: {hold: 12, total: 28}}
+  - {name: long_jump, jump: {hold: 24, total: 40}}
+  - {name: wait,      byte: noop,    frames: 8}
+  - {name: back_off,  byte: left,    frames: 8}
