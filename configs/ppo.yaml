@@ -1,0 +1,37 @@
+# PPO configuration (Phase 4).
+#
+# Hyperparameters are SB3's Atari defaults, which are a sane starting point for a NatureCNN
+# on 84x84 frames. This project does not tune them: the comparison is planning vs. RL, not
+# a hyperparameter search, and the one-week scope rules out sweeps.
+
+# --- environment ---
+level: "1-1"
+seed: 0
+sticky_p: 0.0            # train deterministic; sticky is an EVALUATION condition (Phase 5)
+n_envs: 8                # measured optimum on a 10-core M1 Max; 10 and 12 are SLOWER
+skip: 4                  # frames per agent step
+frame_size: 84
+n_stack: 4               # stacked at the vec level, so velocity is observable from pixels
+max_episode_steps: 3000  # agent steps; ~12000 frames, comfortably enough to clear 1-1
+
+# --- PPO ---
+learning_rate: 0.00025
+n_steps: 512             # per env, so the rollout buffer is 512 * n_envs = 4096
+batch_size: 256
+n_epochs: 4
+gamma: 0.9               # short horizon: the reward is dense x-progress, not sparse
+gae_lambda: 0.95
+clip_range: 0.1
+ent_coef: 0.01           # SMB needs exploration pressure to discover jumping
+vf_coef: 0.5
+max_grad_norm: 0.5
+
+# mps, from measurement rather than expectation. The project assumed MPS would LOSE to CPU
+# for an 84x84 NatureCNN (small kernels, launch overhead). It wins, by 3.6x end-to-end:
+# 672 vs 187 agent steps/s. Eight emulator workers already saturate the CPU, so putting the
+# gradient step there makes them contend; MPS moves it to the GPU. See phase4_benchmark.py.
+device: "mps"
+
+# --- run control ---
+total_timesteps: 5000000
+checkpoint_every: 100000   # agent steps between checkpoints
