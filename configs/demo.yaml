@@ -1,0 +1,53 @@
+# Live demo configuration (Phase 5b).
+
+level: "1-1"
+seed: 0
+
+# Sticky probability used WHEN THE TOGGLE IS ON. The wrapper is always attached so `s` can
+# switch it at runtime; starting at 0.0 means the demo opens unperturbed and the toggle
+# reproduces the headline result on demand.
+sticky_p: 0.0
+
+# Integer upscaling of the 256x240 NES frame. 3 fills a laptop screen comfortably.
+scale: 3
+
+# Frames of planned trajectory drawn ahead of Mario.
+lookahead: 90
+
+# Hard cap per episode. The in-game 400-second timer ends episodes near 8020 frames anyway.
+max_frames: 12000
+
+# Where mp4 recordings are written. Always recorded, as the viva backup.
+record_dir: "media"
+
+# Frames between agent decisions. The planner's plans are per-frame; PPO was trained at
+# frame-skip 4 and is given a decision every 4 frames with the action held in between.
+decision_every:
+  astar_open_loop: 1
+  astar_closed_loop: 1
+  ppo: 4
+  random: 1
+  human: 1
+
+# Cached open-loop plans, produced by scripts/phase3_plan.py. Loaded instantly, because a
+# live full-level search takes ~54 s and would freeze the window.
+plans:
+  "1-1": "results/raw/phase3_plan_1-1_w1.0_seed0.json"
+
+# Closed-loop receding-horizon settings. Matches configs/eval.yaml so the demo shows the
+# same agent the Phase 5 numbers describe.
+closed_loop:
+  replan_every: 15
+  horizon_px: 160
+  weight: 1.0
+  max_nodes: 600
+  max_seconds: 1.0
+
+goal_x:
+  "1-1": 3161
+  "1-2": 2900
+
+ppo:
+  model: "runs/ppo_1-1/final_model.zip"
+  device: "cpu"
+  deterministic: true
