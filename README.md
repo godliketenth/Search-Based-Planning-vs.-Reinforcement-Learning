@@ -22,6 +22,7 @@ dynamic obstacles (enemies). Two agents solve the same levels and are compared u
 | 5 — Evaluation harness | **Done** — see [`docs/phase5-findings.md`](docs/phase5-findings.md) |
 | 5b — Live in-game demo | **Done** — `scripts/demo.py`, plan drawn on screen, live sticky toggle, mp4 recording |
 | Comparison dashboard | **Done** — `scripts/dashboard.py`, two agents side by side with a live perturbation slider |
+| Demo launcher | **Done** — `scripts/showcase.py`, a terminal menu over every demo, plus a two-panel OpenCV window |
 
 ## Setup
 
@@ -73,13 +74,20 @@ tensorboard --logdir runs/
 # Phase 5 — evaluation harness -> results/tables/*.csv, results/figures/*.png
 TODO
 
+# Demo launcher — a menu over everything below; prints the command it runs, then runs it
+.venv/bin/python scripts/showcase.py
+
 # Phase 5b — live demo: watch the planner plan (always records an mp4)
 .venv/bin/python scripts/demo.py --agent astar_closed_loop
 .venv/bin/python scripts/demo.py --agent astar_open_loop --sticky 0.25
 .venv/bin/python scripts/demo.py --agent ppo --headless --frames 1200   # no window
 #   space pause | n step | [ ] speed | s toggle sticky | o overlay | r reset | q quit
 
-# Comparison dashboard — two agents side by side, live perturbation slider
+# Two agents side by side in one OpenCV window (same seed, s perturbs both at once)
+.venv/bin/python scripts/showcase.py --pair astar_open_loop,astar_closed_loop
+.venv/bin/python scripts/showcase.py --pair astar_closed_loop,ppo --sticky 0.25
+
+# Comparison dashboard — the same comparison in the browser, with a perturbation slider
 .venv/bin/streamlit run scripts/dashboard.py
 
 # tests
@@ -109,7 +117,7 @@ src/planning/   motion primitives, forward simulator, A*, heuristic, plans
 src/rl/         observation wrappers, vectorised env, PPO training, policy-agent adapter
 src/agents/     the shared Agent interface both agents implement
 src/eval/       metrics, evaluation harness, plots
-src/viz/        debug overlay (Phase 2), live demo runner (5b), comparison session (dashboard)
+src/viz/        debug overlay (Phase 2), live demo runner (5b), comparison session + window
 configs/        YAML configs (env, astar, ppo, eval)
 scripts/        thin CLI entry points, one per phase
 tests/          unit tests for planner components
