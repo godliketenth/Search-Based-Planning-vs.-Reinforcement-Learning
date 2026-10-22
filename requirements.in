@@ -13,6 +13,9 @@ opencv-python==5.0.0.93
 imageio[ffmpeg]
 matplotlib==3.11.2
 
+# --- live dashboard ---
+streamlit==1.66.0
+
 # --- data / config / cli ---
 numpy==2.5.3
 pandas==3.0.6

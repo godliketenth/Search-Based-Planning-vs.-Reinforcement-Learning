@@ -38,19 +38,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.config import FIGURES_DIR, PROJECT_ROOT, TABLES_DIR, load_config  # noqa: E402
-from src.agents.astar_closed_loop import AStarClosedLoopAgent  # noqa: E402
-from src.agents.astar_open_loop import AStarOpenLoopAgent  # noqa: E402
-from src.agents.ppo_agent import PPOEvalAgent  # noqa: E402
-from src.agents.random_agent import RandomAgent  # noqa: E402
-from src.env.factories import make_planner_env  # noqa: E402
+from src.agents.factory import EVALUABLE_AGENTS, agent_availability, build_agent  # noqa: E402
 from src.eval import plots  # noqa: E402
 from src.eval.harness import (  # noqa: E402
     condition_name, run_cell, write_results_csv, write_summary_csv,
 )
 from src.eval.metrics import summarise  # noqa: E402
-from src.planning.primitives import primitives_from_config  # noqa: E402
 
-ALL_AGENTS = ("random", "astar_open_loop", "astar_closed_loop", "ppo")
+ALL_AGENTS = EVALUABLE_AGENTS
 
 
 def parse_args() -> argparse.Namespace:
@@ -64,58 +59,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--episodes-deterministic", type=int, dest="episodes_deterministic")
     parser.add_argument("--tag", default="", help="suffix for output filenames")
     return parser.parse_args()
-
-
-def build_factory(name: str, level: str, config: dict, astar_config: dict):
-    """Return a zero-argument callable building a fresh agent, or ``None`` if unavailable.
-
-    A fresh agent per episode matters: a leftover plan queue or policy state would silently
-    corrupt the next episode's result.
-    """
-    if name == "random":
-        return lambda: RandomAgent(seed=config["seed"])
-
-    if name == "astar_open_loop":
-        plan_path = PROJECT_ROOT / config["plans"].get(level, "")
-        if not plan_path.exists():
-            return None
-        return lambda: AStarOpenLoopAgent(plan_path)
-
-    if name == "astar_closed_loop":
-        primitives = primitives_from_config(astar_config.get("primitives"))
-        settings = config["closed_loop"]
-        goal_x = config["goal_x"][level]
-
-        def factory():
-            planner_env = make_planner_env(level)
-            return AStarClosedLoopAgent(
-                planner_env=planner_env,
-                primitives=primitives,
-                goal_x=goal_x,
-                replan_every=settings["replan_every"],
-                horizon_px=settings["horizon_px"],
-                weight=settings["weight"],
-                max_nodes=settings["max_nodes"],
-                max_seconds=settings["max_seconds"],
-                lattice=astar_config.get("lattice"),
-            )
-
-        return factory
-
-    if name == "ppo":
-        ppo = config["ppo"]
-        model = PROJECT_ROOT / ppo["model"]
-        if not model.exists():
-            return None
-        return lambda: PPOEvalAgent(
-            model_path=model,
-            device=ppo["device"],
-            deterministic=ppo["deterministic"],
-            training_frames=ppo["training_frames"],
-            training_seconds=ppo["training_seconds"],
-        )
-
-    raise ValueError(f"unknown agent {name!r}")
 
 
 def main() -> None:
@@ -141,10 +84,14 @@ def main() -> None:
 
     for level in config["levels"]:
         for agent_name in args.agents:
-            factory = build_factory(agent_name, level, config, astar_config)
-            if factory is None:
-                skipped.append(f"{agent_name} on {level} (missing plan or model)")
+            available, reason = agent_availability(agent_name, level, config)
+            if not available:
+                skipped.append(f"{agent_name} on {level} ({reason})")
                 continue
+
+            # A fresh agent per episode, so no state leaks between episodes.
+            def factory(name=agent_name, lvl=level):
+                return build_agent(name, lvl, config, astar_config)[0]
 
             for sticky_p in config["conditions"]:
                 # The transfer level is evaluated deterministically only: the question there

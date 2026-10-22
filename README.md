@@ -21,6 +21,7 @@ dynamic obstacles (enemies). Two agents solve the same levels and are compared u
 | 4 — PPO agent | **Done** — 100% on 1-1, 0% on 1-2, see [`docs/phase4-findings.md`](docs/phase4-findings.md) |
 | 5 — Evaluation harness | **Done** — see [`docs/phase5-findings.md`](docs/phase5-findings.md) |
 | 5b — Live in-game demo | **Done** — `scripts/demo.py`, plan drawn on screen, live sticky toggle, mp4 recording |
+| Comparison dashboard | **Done** — `scripts/dashboard.py`, two agents side by side with a live perturbation slider |
 
 ## Setup
 
@@ -78,6 +79,9 @@ TODO
 .venv/bin/python scripts/demo.py --agent ppo --headless --frames 1200   # no window
 #   space pause | n step | [ ] speed | s toggle sticky | o overlay | r reset | q quit
 
+# Comparison dashboard — two agents side by side, live perturbation slider
+.venv/bin/streamlit run scripts/dashboard.py
+
 # tests
 .venv/bin/python -m pytest tests/ -v
 ```
@@ -91,7 +95,7 @@ src/planning/   motion primitives, forward simulator, A*, heuristic, plans
 src/rl/         observation wrappers, vectorised env, PPO training, policy-agent adapter
 src/agents/     the shared Agent interface both agents implement
 src/eval/       metrics, evaluation harness, plots
-src/viz/        debug overlay (Phase 2) + live demo runner (Phase 5b)
+src/viz/        debug overlay (Phase 2), live demo runner (5b), comparison session (dashboard)
 configs/        YAML configs (env, astar, ppo, eval)
 scripts/        thin CLI entry points, one per phase
 tests/          unit tests for planner components
@@ -247,6 +251,26 @@ privileged RAM state and spends its budget once, at plan time; change the level 
 re-plans. PPO is handed pixels and no model, spends its budget at training time, then acts in
 1.4 ms; change the level and it has nothing. This is the **assumption asymmetry** the project
 commits to stating rather than hiding.
+
+### The comparison dashboard
+
+`.venv/bin/streamlit run scripts/dashboard.py` runs two agents **side by side on the same level
+from the same seed**, with a slider that changes the perturbation while they run.
+
+Start A\* open-loop against A\* closed-loop at `sticky = 0.00` — both reach the flag. Raise the
+slider to 0.25 mid-run and the fixed plan desynchronises and dies while the replanner visibly
+redraws its path and continues. In one recorded run from the dashboard: open-loop died at frame
+851 (x = 1417), closed-loop reached the flag at frame 1077 after 72 replans, both facing a
+realised override rate of 0.24.
+
+Tabs: **Live comparison**, **Planner internals** (replans, nodes expanded, failed replans) and
+**Results** (the measured figures and the Phase 5 table, read from CSV — never recomputed).
+A sidebar switch plays the recorded mp4s instead, so the demonstration does not depend on the
+emulator behaving on the day.
+
+> The two panels face the same perturbation *process*, not the same noise *realisation*. Sticky
+> actions repeat the previously **executed** action, so once two agents act differently their
+> override sequences necessarily diverge. Each panel reports its own realised rate.
 
 ### Three things worth defending in the viva
 

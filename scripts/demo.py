@@ -35,18 +35,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.config import PROJECT_ROOT, load_config  # noqa: E402
-from src.agents.astar_closed_loop import AStarClosedLoopAgent  # noqa: E402
-from src.agents.astar_open_loop import AStarOpenLoopAgent  # noqa: E402
-from src.agents.human_agent import HumanAgent  # noqa: E402
-from src.agents.ppo_agent import PPOEvalAgent  # noqa: E402
-from src.agents.random_agent import RandomAgent  # noqa: E402
+from src.agents.factory import AGENT_NAMES, build_agent  # noqa: E402
 from src.env.factories import make_planner_env  # noqa: E402
 from src.planning.plan import Plan  # noqa: E402
-from src.planning.primitives import primitives_from_config  # noqa: E402
 from src.planning.simulator import ForwardSimulator  # noqa: E402
 from src.viz.live_demo import DemoRunner  # noqa: E402
-
-AGENTS = ("astar_open_loop", "astar_closed_loop", "ppo", "random", "human")
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,7 +51,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--config", default="demo.yaml")
     parser.add_argument("--astar-config", default="astar.yaml")
-    parser.add_argument("--agent", choices=AGENTS, default="astar_closed_loop")
+    parser.add_argument("--agent", choices=AGENT_NAMES, default="astar_closed_loop")
     parser.add_argument("--level", help="override: 'world-stage'")
     parser.add_argument("--sticky", type=float, dest="sticky_p",
                         help="override: sticky probability used when the toggle is on")
@@ -69,60 +62,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-record", action="store_true", help="skip the mp4")
     parser.add_argument("--out", type=Path, help="mp4 path (default: media/demo_<agent>.mp4)")
     return parser.parse_args()
-
-
-def build_agent(name: str, level: str, config: dict, astar_config: dict):
-    """Construct the requested agent, loading any cached plan or trained model.
-
-    Returns:
-        ``(agent, open_loop_plan_or_None)``. The plan is returned so the caller can
-        precompute its on-screen trajectory.
-
-    Raises:
-        SystemExit: if a required artefact is missing, with the command that produces it.
-    """
-    if name == "random":
-        return RandomAgent(seed=config["seed"]), None
-
-    if name == "human":
-        return HumanAgent(), None
-
-    if name == "astar_open_loop":
-        plan_path = PROJECT_ROOT / config["plans"].get(level, "")
-        if not plan_path.exists():
-            raise SystemExit(
-                f"no cached plan for {level} at {plan_path}.\n"
-                f"  produce one with: .venv/bin/python scripts/phase3_plan.py --level {level}"
-            )
-        plan = Plan.load(plan_path)
-        return AStarOpenLoopAgent(plan), plan
-
-    if name == "astar_closed_loop":
-        settings = config["closed_loop"]
-        return AStarClosedLoopAgent(
-            planner_env=make_planner_env(level),
-            primitives=primitives_from_config(astar_config.get("primitives")),
-            goal_x=config["goal_x"][level],
-            replan_every=settings["replan_every"],
-            horizon_px=settings["horizon_px"],
-            weight=settings["weight"],
-            max_nodes=settings["max_nodes"],
-            max_seconds=settings["max_seconds"],
-            lattice=astar_config.get("lattice"),
-        ), None
-
-    if name == "ppo":
-        ppo = config["ppo"]
-        model = PROJECT_ROOT / ppo["model"]
-        if not model.exists():
-            raise SystemExit(
-                f"no trained model at {model}.\n"
-                "  train one with: .venv/bin/python scripts/phase4_train.py"
-            )
-        return PPOEvalAgent(model, device=ppo["device"],
-                            deterministic=ppo["deterministic"]), None
-
-    raise ValueError(f"unknown agent {name!r}")
 
 
 def precompute_trajectory(plan: Plan, level: str, seed: int) -> list[tuple[int, int]]:
@@ -150,7 +89,10 @@ def main() -> None:
     astar_config = load_config(args.astar_config)
     level = config["level"]
 
-    agent, plan = build_agent(args.agent, level, config, astar_config)
+    try:
+        agent, plan = build_agent(args.agent, level, config, astar_config)
+    except FileNotFoundError as missing:
+        raise SystemExit(str(missing)) from None
 
     if plan is not None:
         print(f"precomputing the plan's trajectory ({len(plan)} frames)...")

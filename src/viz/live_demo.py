@@ -160,6 +160,9 @@ class DemoRunner:
         self._info: dict = {}
         self._action = 0
         self._writer = None
+        #: The world state from the most recent render, cached so callers (the dashboard's
+        #: stats panel) can read it without recomputing it from RAM.
+        self.last_world: WorldState | None = None
 
     # ------------------------------------------------------------------ episode lifecycle
 
@@ -204,6 +207,7 @@ class DemoRunner:
         world = WorldState.from_env(
             self.env.unwrapped, self._info.get("flag_get", False), self._info.get("time", 0)
         )
+        self.last_world = world
         path = self._planned_path() if show_path else None
         frame = self.env.render()
         return render_overlay(
@@ -215,6 +219,39 @@ class DemoRunner:
             show_enemies=show_enemies,
             scale=self.scale,
         )
+
+    def stats(self) -> dict[str, Any]:
+        """Everything a stats panel needs about this runner, as plain values.
+
+        Reads the cached world state from the last :meth:`render` rather than re-reading RAM,
+        and folds in the agent's own diagnostics when it keeps any. Agents without a planner
+        simply omit the planning keys rather than reporting zeros, so the UI can tell
+        "no planning" apart from "planned nothing yet".
+        """
+        world = self.last_world
+        mario = world.mario if world is not None else None
+        out: dict[str, Any] = {
+            "agent": self.agent.name,
+            "action": name_for_action(self._action),
+            "frame": self.state.frame,
+            "episode_over": self.state.episode_over,
+            "flag_get": bool(self._info.get("flag_get", False)),
+            "x": mario.x if mario else 0,
+            "y": mario.y if mario else 0,
+            "vx": round(mario.vx_pixels, 2) if mario else 0.0,
+            "vy": mario.vy if mario else 0,
+            "on_ground": bool(mario.on_ground) if mario else False,
+            "enemies": len(world.enemies) if world is not None else 0,
+            "sticky_p": self.env.sampler.p,
+            "sticky_realised": round(self.env.sampler.realised_rate, 3),
+        }
+        diagnostics = getattr(self.agent, "diagnostics", None)
+        if diagnostics is not None and diagnostics.planning_calls:
+            out["replans"] = diagnostics.planning_calls
+            out["nodes_expanded"] = diagnostics.nodes_expanded
+            out["planning_seconds"] = round(diagnostics.planning_seconds, 2)
+            out["failed_replans"] = diagnostics.notes.get("failed_replans", 0)
+        return out
 
     def _planned_path(self) -> list[tuple[int, int]] | None:
         """The agent's planned trajectory, if it has one to show."""
