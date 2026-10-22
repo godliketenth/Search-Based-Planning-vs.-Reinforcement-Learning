@@ -86,6 +86,20 @@ TODO
 .venv/bin/python -m pytest tests/ -v
 ```
 
+### Submission documents
+
+The slide deck and the two-page report are generated, not hand-assembled, so their numbers
+cannot drift from `results/tables/phase5_summary_main.csv`. They reuse the institute template
+(logo, red headings) from the NLP mini-project deck and need `python-pptx` / `python-docx`,
+which are *not* runtime dependencies of this project — run them from a throwaway environment:
+
+```bash
+uv venv /tmp/docvenv --python 3.13
+uv pip install --python /tmp/docvenv/bin/python python-pptx python-docx
+/tmp/docvenv/bin/python scripts/make_slides.py    # -> deliverables/*.pptx  (21 slides)
+/tmp/docvenv/bin/python scripts/make_report.py    # -> deliverables/*.docx  (2 pages)
+```
+
 ## Repository layout
 
 ```
